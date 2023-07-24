@@ -14,9 +14,7 @@ Note, you'll need to sign up to MailChimp API to generate API key and other cred
 ## Features you can add
    - Doesn't delete a user from the designated list.
 
-- > No man is an Island - John Donne
-
-Feel free to fork the project, make modification and make pull request.
+> No man is an Island - John Donne
 
 Cheers.
 
