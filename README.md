@@ -1,14 +1,14 @@
-# Hey There :blush: !
+# Hey There :blush:!
 Thank you for your interest in my web app. This is a Nodejs ES6 newsletter app with MailChimp API.
 
 
-I hope to open source it later so anyone can fork it, modify it and use it however you like if you are trying to build a newsletter sign up page.
-Note, you'll need to sign up to MailChimp API to generate API key and other credentials.
+You can fork it, modify it and use it however you like if you are trying to build a newsletter sign-up page.
+Note, you'll need to sign up for MailChimp API to generate the API key and other credentials.
 
 
 ## Features
-   - Subscribes new member to a designated list within a MailChimp account.
-   - Check if a member already exist.
+   - Subscribes new members to a designated list within a MailChimp account.
+   - Check if a member already exists.
    - Update an existing member's credentials besides email.
 
 ## Features you can add
