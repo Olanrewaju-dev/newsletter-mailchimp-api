@@ -1,7 +1,8 @@
 const express = require("express");
 const app = express();
 const bodyParser = require("body-parser");
-const https = require("https");
+const mailchimp = require("@mailchimp/mailchimp_marketing");
+const md5 = require("md5");
 require("dotenv").config();
 
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -15,50 +16,101 @@ app.post("/", (req, res) => {
   // parsing user input into the server
   const firstName = req.body.firstName;
   const lastName = req.body.lastName;
-  const email = req.body.email;
+  const subscriberEmail = req.body.email;
 
-  // formating user data according to mailchimp api references
-  const data = {
-    members: [
-      {
-        email_address: email,
-        status: "subscribed",
-        merge_fields: {
-          FNAME: firstName,
-          LNAME: lastName,
-        },
-      },
-    ],
-  };
+  // MailChimp Audience ID and API redacted with environment variables
+  const listId = process.env.LIST_ID;
 
-  const jsonData = JSON.stringify(data);
-
-  // API credentials redacted using environment variables
-  const list_id = process.env.LIST_ID;
-  const url = `https://us12.api.mailchimp.com/3.0/lists/${list_id}`;
-  const apiKey = process.env.APIKEY;
-  const options = {
-    method: "POST",
-    auth: `olanrewajudev:${apiKey}`,
-  };
-
-  // making request to mailchimp api
-  const requestToMailChimp = https.request(url, options, (response) => {
-    if (response.statusCode === 200) {
-      res.sendFile(__dirname + "/success.html");
-    } else {
-      res.sendFile(__dirname + "/failure.html");
-    }
-
-    response.on("data", (data) => {
-      console.log(data);
-    });
+  mailchimp.setConfig({
+    apiKey: process.env.APIKEY,
+    server: "us12",
   });
 
-  // writing into mailchimp server
-  requestToMailChimp.write(jsonData);
-  requestToMailChimp.end();
-  // console.log("Data successfully sent to mailchimp list");
+  const subscribingUser = {
+    firstname: firstName,
+    lastname: lastName,
+    email: subscriberEmail,
+  };
+
+  const subscriberHash = md5(subscribingUser.email.toLowerCase());
+
+  // function to resubscribing a user
+  async function resubscribeUser() {
+    let response = await mailchimp.lists.setListMember(listId, subscriberHash, {
+      email_address: subscribingUser.email,
+      status: "pending",
+      merge_fields: {
+        FNAME: subscribingUser.firstname,
+        LNAME: subscribingUser.lastname,
+      },
+    });
+
+    // Sending response back to user
+    res.sendFile(__dirname + "/success.html");
+    console.log("i got here", response.status);
+  }
+
+  // function to resubscribing a user
+  async function updateExistingUserInfo() {
+    let response = await mailchimp.lists.updateListMember(
+      listId,
+      subscriberHash,
+      {
+        merge_fields: {
+          FNAME: subscribingUser.firstname,
+          LNAME: subscribingUser.lastname,
+        },
+      }
+    );
+    // Logging user subscription status
+    console.log(`This user's subscription status is ${response.status}.`);
+    res.sendFile(__dirname + "/alreadysubscribed.html");
+  }
+
+  async function subscribeUser() {
+    try {
+      // Checking user subscription status
+      let response = await mailchimp.lists.getListMember(
+        listId,
+        subscriberHash
+      );
+
+      console.log(response.status);
+
+      if (
+        response.status === "unsubscribed" ||
+        "archived" ||
+        "non-subscribed" ||
+        "cleaned"
+      ) {
+        console.log("i got here!!!");
+        return resubscribeUser();
+      } else if (response.status === "subscribed") {
+        return updateExistingUserInfo();
+      }
+    } catch (e) {
+      // Adding new subscriber to the audience list
+      if (e.status === 404) {
+        console.log(`This email is not subscribed to this list`, e);
+
+        let response = await mailchimp.lists.addListMember(listId, {
+          email_address: subscribingUser.email,
+          status: "subscribed",
+          merge_fields: {
+            FNAME: subscribingUser.firstname,
+            LNAME: subscribingUser.lastname,
+          },
+        });
+
+        res.sendFile(__dirname + "/success.html");
+        console.log(response.status);
+      } else {
+        res.sendFile(__dirname + "/failure.html");
+      }
+    }
+  }
+
+  subscribeUser();
 });
 
 // handling error by returning user to homepage
